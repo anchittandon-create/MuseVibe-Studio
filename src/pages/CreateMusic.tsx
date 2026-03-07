@@ -75,6 +75,7 @@ export default function CreateMusic() {
     e.preventDefault();
     setIsGenerating(true);
     try {
+      const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY || '';
       for (let i = 0; i < tracks.length; i++) {
         const trackData = {
           ...tracks[i],
@@ -84,7 +85,10 @@ export default function CreateMusic() {
         };
         await fetch('/api/tracks', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 
+            'Content-Type': 'application/json',
+            'x-goog-api-key': apiKey
+          },
           body: JSON.stringify(trackData),
         });
       }

@@ -66,9 +66,8 @@ function saveLocalDb(data: any) {
   fs.writeFileSync(localDbPath, JSON.stringify(data, null, 2));
 }
 
-function getAI() {
-  console.log('Available env keys:', Object.keys(process.env).filter(k => k.includes('API') || k.includes('KEY')));
-  const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+function getAI(providedApiKey?: string) {
+  const apiKey = providedApiKey || process.env.GEMINI_API_KEY || process.env.API_KEY;
   if (!apiKey || apiKey === 'MY_GEMINI_API_KEY') {
     throw new Error('API key not valid. Please pass a valid API key.');
   }
@@ -106,8 +105,9 @@ app.post('/api/tracks', async (req, res) => {
       saveLocalDb(db);
     }
 
+    const apiKey = req.headers['x-goog-api-key'] as string;
     // Start generation pipeline in background
-    generateTrackPipeline(trackId, trackData).catch(console.error);
+    generateTrackPipeline(trackId, trackData, apiKey).catch(console.error);
 
     res.json(trackData);
   } catch (error: any) {
@@ -170,8 +170,8 @@ async function updateTrackStatus(trackId: string, updates: any) {
   }
 }
 
-async function generateTrackPipeline(trackId: string, trackData: any) {
-  const ai = getAI();
+async function generateTrackPipeline(trackId: string, trackData: any, apiKey?: string) {
+  const ai = getAI(apiKey);
   const durationRequested = parseInt(trackData.durationRequested) || 60;
   const segmentsNeeded = Math.ceil(durationRequested / 30);
   const masterWavPath = path.join(localAudioDir, `${trackId}_master.wav`);
