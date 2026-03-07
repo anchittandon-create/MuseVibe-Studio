@@ -1,87 +1,122 @@
 import { NavLink } from 'react-router-dom';
-import { Home, Music, LayoutDashboard, Settings, Folder, BarChart } from 'lucide-react';
+import { Home, Music, LayoutDashboard, Settings, Folder, BarChart, ChevronLeft, ChevronRight, X } from 'lucide-react';
 
-export default function Sidebar() {
+export default function Sidebar({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen }: any) {
   return (
-    <aside className="w-64 h-screen bg-surface-darker border-r border-border-dark flex flex-col shrink-0">
-      <div className="p-6">
-        <div className="flex items-center gap-3 mb-8">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-primary to-purple-500 flex items-center justify-center text-white font-bold text-xl">
-            G
+    <>
+      {/* Mobile Overlay */}
+      {isMobileOpen && (
+        <div 
+          className="fixed inset-0 bg-black/50 z-40 md:hidden"
+          onClick={() => setIsMobileOpen(false)}
+        />
+      )}
+      
+      <aside className={`
+        fixed md:static inset-y-0 left-0 z-50
+        bg-surface-darker border-r border-border-dark flex flex-col shrink-0
+        transition-all duration-300 ease-in-out
+        ${isCollapsed ? 'md:w-20' : 'md:w-64'}
+        ${isMobileOpen ? 'translate-x-0 w-64' : '-translate-x-full md:translate-x-0'}
+      `}>
+        <div className="p-4 md:p-6 flex items-center justify-between">
+          <div className={`flex items-center gap-3 ${isCollapsed ? 'md:justify-center md:w-full' : ''}`}>
+            <div className="w-10 h-10 shrink-0 rounded-full bg-gradient-to-tr from-primary to-purple-500 flex items-center justify-center text-white font-bold text-xl">
+              G
+            </div>
+            <div className={`transition-opacity duration-200 ${isCollapsed ? 'md:hidden' : 'block'}`}>
+              <h1 className="text-white text-base font-bold leading-tight whitespace-nowrap">Gemini Studio</h1>
+              <p className="text-slate-400 text-xs font-medium">Pro Plan</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-white text-base font-bold leading-tight">Gemini Studio</h1>
-            <p className="text-slate-400 text-xs font-medium">Pro Plan</p>
-          </div>
-        </div>
-        <nav className="flex flex-col gap-2">
-          <NavLink
-            to="/"
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-                isActive
-                  ? 'bg-primary/20 text-white border border-primary/30'
-                  : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
-              }`
-            }
-          >
-            <Home size={20} />
-            <span className="text-sm font-medium">Home</span>
-          </NavLink>
-          <NavLink
-            to="/create"
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-                isActive
-                  ? 'bg-primary/20 text-white border border-primary/30'
-                  : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
-              }`
-            }
-          >
-            <Music size={20} />
-            <span className="text-sm font-medium">Create Music</span>
-          </NavLink>
-          <NavLink
-            to="/dashboard"
-            className={({ isActive }) =>
-              `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-                isActive
-                  ? 'bg-primary/20 text-white border border-primary/30'
-                  : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
-              }`
-            }
-          >
-            <LayoutDashboard size={20} />
-            <span className="text-sm font-medium">Dashboard</span>
-          </NavLink>
-          <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors cursor-pointer mt-4">
-            <Folder size={20} />
-            <span className="text-sm font-medium">Projects</span>
-          </div>
-          <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors cursor-pointer">
-            <BarChart size={20} />
-            <span className="text-sm font-medium">Analytics</span>
-          </div>
-          <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 transition-colors cursor-pointer">
-            <Settings size={20} />
-            <span className="text-sm font-medium">Settings</span>
-          </div>
-        </nav>
-      </div>
-      <div className="mt-auto p-6 border-t border-border-dark">
-        <div className="bg-surface-dark rounded-xl p-4 border border-border-dark">
-          <div className="flex justify-between items-center mb-2">
-            <span className="text-xs text-slate-400 font-medium">Storage Used</span>
-            <span className="text-xs text-white font-bold">75%</span>
-          </div>
-          <div className="w-full bg-border-dark rounded-full h-1.5">
-            <div className="bg-primary h-1.5 rounded-full" style={{ width: '75%' }}></div>
-          </div>
-          <button className="w-full mt-4 py-2 text-xs font-medium text-white bg-border-dark hover:bg-white/10 rounded-lg transition-colors">
-            Upgrade Plan
+          {/* Mobile Close */}
+          <button className="md:hidden text-slate-400 hover:text-white" onClick={() => setIsMobileOpen(false)}>
+            <X size={24} />
           </button>
         </div>
-      </div>
-    </aside>
+
+        <nav className="flex flex-col gap-2 px-4 md:px-6 mt-4">
+          <NavItem to="/" icon={<Home size={20} />} label="Home" isCollapsed={isCollapsed} setIsMobileOpen={setIsMobileOpen} />
+          <NavItem to="/create" icon={<Music size={20} />} label="Create Music" isCollapsed={isCollapsed} setIsMobileOpen={setIsMobileOpen} />
+          <NavItem to="/dashboard" icon={<LayoutDashboard size={20} />} label="Dashboard" isCollapsed={isCollapsed} setIsMobileOpen={setIsMobileOpen} />
+          
+          <div className="mt-4 pt-4 border-t border-border-dark flex flex-col gap-2">
+            <NavItem icon={<Folder size={20} />} label="Projects" isCollapsed={isCollapsed} />
+            <NavItem icon={<BarChart size={20} />} label="Analytics" isCollapsed={isCollapsed} />
+            <NavItem icon={<Settings size={20} />} label="Settings" isCollapsed={isCollapsed} />
+          </div>
+        </nav>
+
+        <div className="mt-auto p-4 md:p-6">
+          <div className={`bg-surface-dark rounded-xl border border-border-dark transition-all duration-300 ${isCollapsed ? 'md:p-2 md:flex md:justify-center' : 'p-4'}`}>
+            {isCollapsed ? (
+              <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" title="Storage: 75%"></div>
+            ) : (
+              <>
+                <div className="flex justify-between items-center mb-2">
+                  <span className="text-xs text-slate-400 font-medium whitespace-nowrap">Storage Used</span>
+                  <span className="text-xs text-white font-bold">75%</span>
+                </div>
+                <div className="w-full bg-border-dark rounded-full h-1.5">
+                  <div className="bg-primary h-1.5 rounded-full" style={{ width: '75%' }}></div>
+                </div>
+                <button className="w-full mt-4 py-2 text-xs font-medium text-white bg-border-dark hover:bg-white/10 rounded-lg transition-colors whitespace-nowrap">
+                  Upgrade Plan
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+
+        {/* Desktop Collapse Toggle */}
+        <button 
+          onClick={() => setIsCollapsed(!isCollapsed)}
+          className="hidden md:flex absolute -right-3 top-8 w-6 h-6 bg-surface-dark border border-border-dark rounded-full items-center justify-center text-slate-400 hover:text-white hover:bg-border-dark transition-colors z-10"
+        >
+          {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
+        </button>
+      </aside>
+    </>
+  );
+}
+
+function NavItem({ to, icon, label, isCollapsed, setIsMobileOpen }: any) {
+  const content = (
+    <>
+      <div className="shrink-0">{icon}</div>
+      <span className={`text-sm font-medium whitespace-nowrap transition-opacity duration-200 ${isCollapsed ? 'md:hidden' : 'block'}`}>
+        {label}
+      </span>
+    </>
+  );
+
+  const baseClass = `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors overflow-hidden ${isCollapsed ? 'md:justify-center' : ''}`;
+
+  if (to) {
+    return (
+      <NavLink
+        to={to}
+        onClick={() => setIsMobileOpen && setIsMobileOpen(false)}
+        className={({ isActive }) =>
+          `${baseClass} ${
+            isActive
+              ? 'bg-primary/20 text-white border border-primary/30'
+              : 'text-slate-400 hover:text-white hover:bg-white/5 border border-transparent'
+          }`
+        }
+        title={isCollapsed ? label : undefined}
+      >
+        {content}
+      </NavLink>
+    );
+  }
+
+  return (
+    <div 
+      className={`${baseClass} text-slate-400 hover:text-white hover:bg-white/5 border border-transparent cursor-pointer`}
+      title={isCollapsed ? label : undefined}
+    >
+      {content}
+    </div>
   );
 }
