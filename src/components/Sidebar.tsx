@@ -1,7 +1,11 @@
 import { NavLink } from 'react-router-dom';
-import { Home, Music, LayoutDashboard, Settings, Folder, BarChart, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Home, Music, LayoutDashboard, Settings, Folder, BarChart, ChevronLeft, ChevronRight, X, LogOut } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+import { logOut } from '../lib/firebase';
 
 export default function Sidebar({ isCollapsed, setIsCollapsed, isMobileOpen, setIsMobileOpen }: any) {
+  const { user } = useAuth();
+
   return (
     <>
       {/* Mobile Overlay */}
@@ -47,25 +51,27 @@ export default function Sidebar({ isCollapsed, setIsCollapsed, isMobileOpen, set
           </div>
         </nav>
 
-        <div className="mt-auto p-4 md:p-6">
-          <div className={`bg-surface-dark rounded-xl border border-border-dark transition-all duration-300 ${isCollapsed ? 'md:p-2 md:flex md:justify-center' : 'p-4'}`}>
-            {isCollapsed ? (
-              <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" title="Storage: 75%"></div>
-            ) : (
-              <>
-                <div className="flex justify-between items-center mb-2">
-                  <span className="text-xs text-slate-400 font-medium whitespace-nowrap">Storage Used</span>
-                  <span className="text-xs text-white font-bold">75%</span>
+        <div className="mt-auto p-4 md:p-6 flex flex-col gap-4">
+          {user && (
+            <div className={`flex items-center gap-3 ${isCollapsed ? 'md:justify-center' : ''}`}>
+              <img src={user.photoURL || `https://ui-avatars.com/api/?name=${user.email}`} alt="User" className="w-8 h-8 rounded-full" />
+              {!isCollapsed && (
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-white font-medium truncate">{user.displayName || 'User'}</p>
+                  <p className="text-xs text-slate-400 truncate">{user.email}</p>
                 </div>
-                <div className="w-full bg-border-dark rounded-full h-1.5">
-                  <div className="bg-primary h-1.5 rounded-full" style={{ width: '75%' }}></div>
-                </div>
-                <button className="w-full mt-4 py-2 text-xs font-medium text-white bg-border-dark hover:bg-white/10 rounded-lg transition-colors whitespace-nowrap">
-                  Upgrade Plan
-                </button>
-              </>
-            )}
-          </div>
+              )}
+            </div>
+          )}
+          
+          <button 
+            onClick={logOut}
+            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/5 border border-transparent transition-colors ${isCollapsed ? 'md:justify-center' : ''}`}
+            title={isCollapsed ? "Log Out" : undefined}
+          >
+            <LogOut size={20} className="shrink-0" />
+            {!isCollapsed && <span className="text-sm font-medium whitespace-nowrap">Log Out</span>}
+          </button>
         </div>
 
         {/* Desktop Collapse Toggle */}
