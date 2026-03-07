@@ -83,27 +83,6 @@ app.get('/api/env', (req, res) => {
   });
 });
 
-app.post('/api/suggest', async (req, res) => {
-  try {
-    const ai = getAI();
-    const { fieldName, currentValue, fullContext } = req.body;
-    const prompt = `You are an AI music producer assistant. The user is filling out a music generation form.
-Field: ${fieldName}
-Current Value: ${currentValue}
-Context: ${JSON.stringify(fullContext)}
-Suggest a creative, professional value for this field. Return ONLY the suggested text, no markdown, no quotes.`;
-
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: prompt,
-    });
-    res.json({ suggestion: response.text?.trim() });
-  } catch (error: any) {
-    console.error('Suggest error:', error);
-    res.status(500).json({ error: error.message });
-  }
-});
-
 app.post('/api/tracks', async (req, res) => {
   try {
     const trackId = uuidv4();

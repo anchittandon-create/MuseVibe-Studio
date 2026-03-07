@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sparkles, Wand2, Plus, Check, ChevronDown, ChevronUp } from 'lucide-react';
+import AISuggestButton from '../components/AISuggestButton';
 
 const GENRES = ['Cinematic', 'Lo-Fi', 'Synthwave', 'Ambient', 'Techno', 'Orchestral', 'Pop', 'Rock', 'Jazz'];
 const MOODS = ['Epic', 'Chill', 'Dark', 'Uplifting', 'Melancholic', 'Energetic', 'Dreamy'];
@@ -12,8 +13,13 @@ const defaultTrack = {
   moods: [] as string[],
   tempo: 120,
   durationRequested: 60,
+  lyrics: '',
+  vocalLanguage: 'English',
   vocalStyle: 'None',
+  artistInspiration: '',
   structurePreference: 'Standard',
+  generateVideo: false,
+  videoStyle: 'Cinematic',
 };
 
 export default function CreateMusic() {
@@ -24,7 +30,7 @@ export default function CreateMusic() {
   const [numSongs, setNumSongs] = useState(3);
   const [tracks, setTracks] = useState([{ ...defaultTrack }]);
   const [expandedTrack, setExpandedTrack] = useState<number>(0);
-  const [suggestingField, setSuggestingField] = useState<{index: number, field: string} | null>(null);
+  const [suggestedFields, setSuggestedFields] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (mode === 'Album') {
@@ -61,27 +67,8 @@ export default function CreateMusic() {
     });
   };
 
-  const handleSuggest = async (index: number, fieldName: string) => {
-    setSuggestingField({ index, field: fieldName });
-    try {
-      const res = await fetch('/api/suggest', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          fieldName,
-          currentValue: (tracks[index] as any)[fieldName],
-          fullContext: tracks[index],
-        }),
-      });
-      const data = await res.json();
-      if (data.suggestion) {
-        updateTrack(index, fieldName, data.suggestion);
-      }
-    } catch (error) {
-      console.error('Failed to get suggestion', error);
-    } finally {
-      setSuggestingField(null);
-    }
+  const markSuggested = (key: string) => {
+    setSuggestedFields(prev => ({ ...prev, [key]: true }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -114,14 +101,14 @@ export default function CreateMusic() {
       <div>
         <div className="flex justify-between items-center mb-2">
           <label className="text-slate-200 text-sm font-medium">Track Name <span className="text-red-400">*</span></label>
-          <button
-            type="button"
-            onClick={() => handleSuggest(index, 'trackName')}
-            className="text-xs text-primary hover:text-primary-hover flex items-center gap-1"
-          >
-            <Wand2 size={12} className={suggestingField?.index === index && suggestingField?.field === 'trackName' ? 'animate-spin' : ''} />
-            AI Suggest
-          </button>
+          <AISuggestButton
+            fieldName="Track Name"
+            currentValue={track.trackName}
+            context={track}
+            onSuggest={(val) => updateTrack(index, 'trackName', val)}
+            isUsed={!!suggestedFields[`track_${index}_trackName`]}
+            onMarkUsed={() => markSuggested(`track_${index}_trackName`)}
+          />
         </div>
         <input
           type="text"
@@ -137,14 +124,14 @@ export default function CreateMusic() {
       <div>
         <div className="flex justify-between items-center mb-2">
           <label className="text-slate-200 text-sm font-medium">Music Prompt <span className="text-red-400">*</span></label>
-          <button
-            type="button"
-            onClick={() => handleSuggest(index, 'prompt')}
-            className="text-xs text-primary hover:text-primary-hover flex items-center gap-1"
-          >
-            <Wand2 size={12} className={suggestingField?.index === index && suggestingField?.field === 'prompt' ? 'animate-spin' : ''} />
-            AI Suggest
-          </button>
+          <AISuggestButton
+            fieldName="Music Prompt"
+            currentValue={track.prompt}
+            context={track}
+            onSuggest={(val) => updateTrack(index, 'prompt', val)}
+            isUsed={!!suggestedFields[`track_${index}_prompt`]}
+            onMarkUsed={() => markSuggested(`track_${index}_prompt`)}
+          />
         </div>
         <textarea
           value={track.prompt}
@@ -158,7 +145,19 @@ export default function CreateMusic() {
       {/* Genres & Moods */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
-          <span className="text-slate-200 text-sm font-medium mb-3 block">Genres</span>
+          <div className="flex justify-between items-center mb-3">
+            <span className="text-slate-200 text-sm font-medium block">Genres</span>
+            <AISuggestButton
+              fieldName="Genres"
+              currentValue={track.genres}
+              context={track}
+              onSuggest={(val) => updateTrack(index, 'genres', val)}
+              isUsed={!!suggestedFields[`track_${index}_genres`]}
+              onMarkUsed={() => markSuggested(`track_${index}_genres`)}
+              type="array"
+              options={GENRES}
+            />
+          </div>
           <div className="flex flex-wrap gap-2">
             {GENRES.map((genre) => {
               const isSelected = track.genres.includes(genre);
@@ -181,7 +180,19 @@ export default function CreateMusic() {
           </div>
         </div>
         <div>
-          <span className="text-slate-200 text-sm font-medium mb-3 block">Moods</span>
+          <div className="flex justify-between items-center mb-3">
+            <span className="text-slate-200 text-sm font-medium block">Moods</span>
+            <AISuggestButton
+              fieldName="Moods"
+              currentValue={track.moods}
+              context={track}
+              onSuggest={(val) => updateTrack(index, 'moods', val)}
+              isUsed={!!suggestedFields[`track_${index}_moods`]}
+              onMarkUsed={() => markSuggested(`track_${index}_moods`)}
+              type="array"
+              options={MOODS}
+            />
+          </div>
           <div className="flex flex-wrap gap-2">
             {MOODS.map((mood) => {
               const isSelected = track.moods.includes(mood);
@@ -208,9 +219,22 @@ export default function CreateMusic() {
       {/* Sliders */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
-          <span className="text-slate-200 text-sm font-medium mb-3 block">
-            Tempo: <span className="text-primary font-bold">{track.tempo} BPM</span>
-          </span>
+          <div className="flex justify-between items-center mb-3">
+            <span className="text-slate-200 text-sm font-medium block">
+              Tempo: <span className="text-primary font-bold">{track.tempo} BPM</span>
+            </span>
+            <AISuggestButton
+              fieldName="Tempo (BPM)"
+              currentValue={track.tempo}
+              context={track}
+              onSuggest={(val) => updateTrack(index, 'tempo', val)}
+              isUsed={!!suggestedFields[`track_${index}_tempo`]}
+              onMarkUsed={() => markSuggested(`track_${index}_tempo`)}
+              type="number"
+              min={60}
+              max={200}
+            />
+          </div>
           <input
             type="range"
             min="60"
@@ -221,9 +245,22 @@ export default function CreateMusic() {
           />
         </div>
         <div>
-          <span className="text-slate-200 text-sm font-medium mb-3 block">
-            Duration: <span className="text-primary font-bold">{track.durationRequested}s</span>
-          </span>
+          <div className="flex justify-between items-center mb-3">
+            <span className="text-slate-200 text-sm font-medium block">
+              Duration: <span className="text-primary font-bold">{track.durationRequested}s</span>
+            </span>
+            <AISuggestButton
+              fieldName="Duration (seconds)"
+              currentValue={track.durationRequested}
+              context={track}
+              onSuggest={(val) => updateTrack(index, 'durationRequested', val)}
+              isUsed={!!suggestedFields[`track_${index}_duration`]}
+              onMarkUsed={() => markSuggested(`track_${index}_duration`)}
+              type="number"
+              min={30}
+              max={300}
+            />
+          </div>
           <input
             type="range"
             min="30"
@@ -236,10 +273,89 @@ export default function CreateMusic() {
         </div>
       </div>
 
-      {/* Advanced Settings */}
-      <div className="pt-4 border-t border-border-dark grid grid-cols-1 md:grid-cols-2 gap-6">
+      {/* Lyrics & Artist Inspiration */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
-          <label className="text-slate-200 text-sm font-medium mb-2 block">Vocal Style</label>
+          <div className="flex justify-between items-center mb-2">
+            <label className="text-slate-200 text-sm font-medium">Lyrics <span className="text-slate-500 text-xs font-normal">(Optional)</span></label>
+            <AISuggestButton
+              fieldName="Lyrics"
+              currentValue={track.lyrics}
+              context={track}
+              onSuggest={(val) => updateTrack(index, 'lyrics', val)}
+              isUsed={!!suggestedFields[`track_${index}_lyrics`]}
+              onMarkUsed={() => markSuggested(`track_${index}_lyrics`)}
+            />
+          </div>
+          <textarea
+            value={track.lyrics}
+            onChange={(e) => updateTrack(index, 'lyrics', e.target.value)}
+            className="w-full bg-background-dark border border-border-dark rounded-lg p-4 text-white placeholder-slate-500 focus:ring-1 focus:ring-primary focus:border-primary focus:outline-none min-h-[100px] resize-none"
+            placeholder="Write your lyrics here..."
+          />
+        </div>
+        <div>
+          <div className="flex justify-between items-center mb-2">
+            <label className="text-slate-200 text-sm font-medium">Artist Inspiration</label>
+            <AISuggestButton
+              fieldName="Artist Inspiration"
+              currentValue={track.artistInspiration}
+              context={track}
+              onSuggest={(val) => updateTrack(index, 'artistInspiration', val)}
+              isUsed={!!suggestedFields[`track_${index}_artistInspiration`]}
+              onMarkUsed={() => markSuggested(`track_${index}_artistInspiration`)}
+            />
+          </div>
+          <input
+            type="text"
+            value={track.artistInspiration}
+            onChange={(e) => updateTrack(index, 'artistInspiration', e.target.value)}
+            className="w-full bg-background-dark border border-border-dark rounded-lg p-3 text-white placeholder-slate-500 focus:ring-1 focus:ring-primary focus:border-primary focus:outline-none"
+            placeholder="e.g., Hans Zimmer, Daft Punk"
+          />
+        </div>
+      </div>
+
+      {/* Advanced Settings */}
+      <div className="pt-4 border-t border-border-dark grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div>
+          <div className="flex justify-between items-center mb-2">
+            <label className="text-slate-200 text-sm font-medium block">Vocal Language</label>
+            <AISuggestButton
+              fieldName="Vocal Language"
+              currentValue={track.vocalLanguage}
+              context={track}
+              onSuggest={(val) => updateTrack(index, 'vocalLanguage', val)}
+              isUsed={!!suggestedFields[`track_${index}_vocalLanguage`]}
+              onMarkUsed={() => markSuggested(`track_${index}_vocalLanguage`)}
+              options={['English', 'Spanish', 'French', 'Japanese', 'Korean']}
+            />
+          </div>
+          <select
+            value={track.vocalLanguage}
+            onChange={(e) => updateTrack(index, 'vocalLanguage', e.target.value)}
+            className="w-full bg-background-dark border border-border-dark rounded-lg p-3 text-white focus:ring-1 focus:ring-primary focus:border-primary focus:outline-none"
+          >
+            <option>English</option>
+            <option>Spanish</option>
+            <option>French</option>
+            <option>Japanese</option>
+            <option>Korean</option>
+          </select>
+        </div>
+        <div>
+          <div className="flex justify-between items-center mb-2">
+            <label className="text-slate-200 text-sm font-medium block">Vocal Style</label>
+            <AISuggestButton
+              fieldName="Vocal Style"
+              currentValue={track.vocalStyle}
+              context={track}
+              onSuggest={(val) => updateTrack(index, 'vocalStyle', val)}
+              isUsed={!!suggestedFields[`track_${index}_vocalStyle`]}
+              onMarkUsed={() => markSuggested(`track_${index}_vocalStyle`)}
+              options={['None', 'Male Pop', 'Female Pop', 'Choir', 'Rap']}
+            />
+          </div>
           <select
             value={track.vocalStyle}
             onChange={(e) => updateTrack(index, 'vocalStyle', e.target.value)}
@@ -253,7 +369,18 @@ export default function CreateMusic() {
           </select>
         </div>
         <div>
-          <label className="text-slate-200 text-sm font-medium mb-2 block">Structure Preference</label>
+          <div className="flex justify-between items-center mb-2">
+            <label className="text-slate-200 text-sm font-medium block">Structure Preference</label>
+            <AISuggestButton
+              fieldName="Structure Preference"
+              currentValue={track.structurePreference}
+              context={track}
+              onSuggest={(val) => updateTrack(index, 'structurePreference', val)}
+              isUsed={!!suggestedFields[`track_${index}_structurePreference`]}
+              onMarkUsed={() => markSuggested(`track_${index}_structurePreference`)}
+              options={['Standard', 'Progressive Build', 'Ambient Drone', 'Verse-Chorus']}
+            />
+          </div>
           <select
             value={track.structurePreference}
             onChange={(e) => updateTrack(index, 'structurePreference', e.target.value)}
@@ -265,6 +392,54 @@ export default function CreateMusic() {
             <option>Verse-Chorus</option>
           </select>
         </div>
+      </div>
+
+      {/* Video Generation */}
+      <div className="pt-4 border-t border-border-dark">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <label className="text-slate-200 text-sm font-medium block">Generate Music Video</label>
+            <p className="text-slate-500 text-xs">Create a synchronized video using Veo 3.1</p>
+          </div>
+          <label className="relative inline-flex items-center cursor-pointer">
+            <input
+              type="checkbox"
+              className="sr-only peer"
+              checked={track.generateVideo}
+              onChange={(e) => updateTrack(index, 'generateVideo', e.target.checked)}
+            />
+            <div className="w-11 h-6 bg-border-dark peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+          </label>
+        </div>
+
+        {track.generateVideo && (
+          <div>
+            <div className="flex justify-between items-center mb-2">
+              <label className="text-slate-200 text-sm font-medium block">Video Style</label>
+              <AISuggestButton
+                fieldName="Video Style"
+                currentValue={track.videoStyle}
+                context={track}
+                onSuggest={(val) => updateTrack(index, 'videoStyle', val)}
+                isUsed={!!suggestedFields[`track_${index}_videoStyle`]}
+                onMarkUsed={() => markSuggested(`track_${index}_videoStyle`)}
+                options={['Cinematic', 'Anime', 'Cyberpunk', 'Abstract', 'Retro 80s', 'Watercolor']}
+              />
+            </div>
+            <select
+              value={track.videoStyle}
+              onChange={(e) => updateTrack(index, 'videoStyle', e.target.value)}
+              className="w-full bg-background-dark border border-border-dark rounded-lg p-3 text-white focus:ring-1 focus:ring-primary focus:border-primary focus:outline-none"
+            >
+              <option>Cinematic</option>
+              <option>Anime</option>
+              <option>Cyberpunk</option>
+              <option>Abstract</option>
+              <option>Retro 80s</option>
+              <option>Watercolor</option>
+            </select>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -303,7 +478,17 @@ export default function CreateMusic() {
             {mode === 'Album' && (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-background-dark rounded-xl border border-border-dark">
                 <div>
-                  <label className="text-slate-200 text-sm font-medium mb-2 block">Album Name <span className="text-red-400">*</span></label>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="text-slate-200 text-sm font-medium block">Album Name <span className="text-red-400">*</span></label>
+                    <AISuggestButton
+                      fieldName="Album Name"
+                      currentValue={albumName}
+                      context={{ mode, numSongs }}
+                      onSuggest={setAlbumName}
+                      isUsed={!!suggestedFields['album_name']}
+                      onMarkUsed={() => markSuggested('album_name')}
+                    />
+                  </div>
                   <input
                     type="text"
                     value={albumName}
@@ -314,7 +499,20 @@ export default function CreateMusic() {
                   />
                 </div>
                 <div>
-                  <label className="text-slate-200 text-sm font-medium mb-2 block">Number of Songs</label>
+                  <div className="flex justify-between items-center mb-2">
+                    <label className="text-slate-200 text-sm font-medium block">Number of Songs</label>
+                    <AISuggestButton
+                      fieldName="Number of Songs"
+                      currentValue={numSongs}
+                      context={{ mode, albumName }}
+                      onSuggest={setNumSongs}
+                      isUsed={!!suggestedFields['album_numSongs']}
+                      onMarkUsed={() => markSuggested('album_numSongs')}
+                      type="number"
+                      min={2}
+                      max={12}
+                    />
+                  </div>
                   <input
                     type="number"
                     min="2"
