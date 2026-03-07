@@ -67,7 +67,8 @@ function saveLocalDb(data: any) {
 }
 
 function getAI() {
-  const apiKey = process.env.GEMINI_API_KEY;
+  console.log('Available env keys:', Object.keys(process.env).filter(k => k.includes('API') || k.includes('KEY')));
+  const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
   if (!apiKey || apiKey === 'MY_GEMINI_API_KEY') {
     throw new Error('API key not valid. Please pass a valid API key.');
   }
@@ -75,6 +76,13 @@ function getAI() {
 }
 
 // API Routes
+app.get('/api/env', (req, res) => {
+  res.json({ 
+    keys: Object.keys(process.env).filter(k => k.includes('API') || k.includes('KEY')),
+    val: process.env.GEMINI_API_KEY
+  });
+});
+
 app.post('/api/suggest', async (req, res) => {
   try {
     const ai = getAI();
