@@ -36,7 +36,7 @@ export default function Dashboard() {
       <div className="max-w-[1400px] mx-auto">
         <div className="flex justify-between items-end mb-8">
           <div>
-            <h2 className="text-3xl font-bold text-white tracking-tight">Dashboard</h2>
+            <h2 className="text-3xl font-bold text-white tracking-tight">Your Creations</h2>
             <p className="text-slate-400">Manage your generated tracks and pipelines.</p>
           </div>
           <button onClick={fetchTracks} className="text-slate-400 hover:text-white flex items-center gap-2">
@@ -171,7 +171,9 @@ function TrackCard({ track }: { track: any; key?: any }) {
 
       {/* Audio Player */}
       <div className="relative h-16 w-full bg-background-dark rounded-lg flex items-center px-4 gap-4 overflow-hidden border border-border-dark">
-        <audio ref={audioRef} src={track.durationGenerated > 0 || track.status === 'completed' ? track.audioMasterUrl : ''} preload="auto" />
+        {(track.durationGenerated > 0 || track.status === 'completed') && track.audioMasterUrl && (
+          <audio ref={audioRef} src={track.audioMasterUrl} preload="auto" />
+        )}
         
         <button
           onClick={togglePlay}
