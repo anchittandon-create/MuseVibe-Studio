@@ -1,6 +1,7 @@
-/// <reference types="vite/client" />
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/auth';
+import { getAuth, RecaptchaVerifier, signInWithPhoneNumber } from 'firebase/auth';
+import { getFirestore } from 'firebase/firestore';
+import { getStorage } from 'firebase/storage';
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
@@ -13,7 +14,18 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const googleProvider = new GoogleAuthProvider();
+export const db = getFirestore(app);
+export const storage = getStorage(app);
 
-export const signInWithGoogle = () => signInWithPopup(auth, googleProvider);
-export const logOut = () => signOut(auth);
+// Helper for Recaptcha
+export const setupRecaptcha = (containerId: string) => {
+  if (!window.recaptchaVerifier) {
+    window.recaptchaVerifier = new RecaptchaVerifier(auth, containerId, {
+      size: 'invisible',
+      callback: () => {
+        // reCAPTCHA solved
+      }
+    });
+  }
+  return window.recaptchaVerifier;
+};
