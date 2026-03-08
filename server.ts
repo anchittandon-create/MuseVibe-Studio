@@ -186,13 +186,16 @@ async function generateTrackPipeline(trackId: string, trackData: any, apiKey?: s
     
     // Call Gemini to generate audio segment
     const structureRole = currentSegment === 0 ? 'intro' : currentSegment === segmentsNeeded - 1 ? 'outro' : 'body';
-    const prompt = `original prompt: ${trackData.prompt}
+    const prompt = `original prompt: ${trackData.prompt || trackData.musicPrompt}
 genres: ${trackData.genres?.join(', ')}
 intent object: ${JSON.stringify({ moods: trackData.moods, tempo: trackData.tempo })}
 structure plan role for this segment: ${structureRole}
+lyrics to sing in this segment: ${trackData.lyrics ? trackData.lyrics : 'None'}
+vocal style: ${trackData.vocalStyle}
+vocal language: ${trackData.vocalLanguage}
 previous segment metadata: ${JSON.stringify(previousSegmentMetadata)}
 
-Instruct: continue composition, maintain tempo, maintain key, maintain rhythm continuity, maintain instrument continuity.`;
+Instruct: continue composition, sing the provided lyrics if any, maintain tempo, maintain key, maintain rhythm continuity, maintain instrument continuity.`;
 
     try {
       const response = await ai.models.generateContent({
@@ -329,6 +332,7 @@ Instruct: continue composition, maintain tempo, maintain key, maintain rhythm co
   // Upload to Firebase Storage if configured
   const fb = getFirebase();
   let finalAudioUrl = `/audio/${trackId}_master.mp3`;
+  let finalVideoUrl = null;
   
   if (fb && fb.storage) {
     try {
@@ -345,10 +349,68 @@ Instruct: continue composition, maintain tempo, maintain key, maintain rhythm co
     }
   }
 
+  // Generate Video if requested
+  if (trackData.generateVideo) {
+    try {
+      await updateTrackStatus(trackId, { status: 'generating_video' });
+      const videoPrompt = trackData.videoDescription || `A music video for a song titled ${trackData.trackName || 'Untitled'}, style: ${trackData.videoStyle || 'Cinematic'}`;
+      
+      let operation = await ai.models.generateVideos({
+        model: 'veo-3.1-fast-generate-preview',
+        prompt: videoPrompt,
+        config: {
+          numberOfVideos: 1,
+          resolution: '720p',
+          aspectRatio: '16:9'
+        }
+      });
+
+      while (!operation.done) {
+        await new Promise(resolve => setTimeout(resolve, 10000));
+        operation = await ai.operations.getVideosOperation({ operation });
+      }
+
+      const downloadLink = operation.response?.generatedVideos?.[0]?.video?.uri;
+      if (downloadLink) {
+        const videoResponse = await fetch(downloadLink, {
+          method: 'GET',
+          headers: {
+            'x-goog-api-key': apiKey || process.env.GEMINI_API_KEY || process.env.API_KEY || '',
+          },
+        });
+        
+        if (videoResponse.ok) {
+          const videoBuffer = await videoResponse.arrayBuffer();
+          const localVideoPath = path.join(localAudioDir, `${trackId}_video.mp4`);
+          fs.writeFileSync(localVideoPath, Buffer.from(videoBuffer));
+          finalVideoUrl = `/audio/${trackId}_video.mp4`;
+          
+          if (fb && fb.storage) {
+            try {
+              const bucket = fb.storage.bucket();
+              await bucket.upload(localVideoPath, {
+                destination: `video/${trackId}_video.mp4`,
+                metadata: { contentType: 'video/mp4' }
+              });
+              const file = bucket.file(`video/${trackId}_video.mp4`);
+              await file.makePublic();
+              finalVideoUrl = file.publicUrl();
+            } catch (e) {
+              console.error('Failed to upload video to Firebase Storage', e);
+            }
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Failed to generate video', e);
+    }
+  }
+
   await updateTrackStatus(trackId, {
     status: 'completed',
     progressPercentage: 100,
-    audioMasterUrl: finalAudioUrl
+    audioMasterUrl: finalAudioUrl,
+    ...(finalVideoUrl ? { videoUrl: finalVideoUrl } : {})
   });
 }
 

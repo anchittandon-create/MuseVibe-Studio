@@ -1,627 +1,294 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Sparkles, Wand2, Plus, Check, ChevronDown, ChevronUp } from 'lucide-react';
-import AISuggestButton from '../components/AISuggestButton';
+import React, { useState } from 'react';
+import { Play, Loader2, Music, Disc, ChevronDown, ChevronUp, Sparkles } from 'lucide-react';
+import { FormField } from '../components/FormField';
 
-const GENRES = ['Cinematic', 'Lo-Fi', 'Synthwave', 'Ambient', 'Techno', 'Orchestral', 'Pop', 'Rock', 'Jazz'];
-const MOODS = ['Epic', 'Chill', 'Dark', 'Uplifting', 'Melancholic', 'Energetic', 'Dreamy'];
+type Mode = 'Song' | 'Album';
 
-const defaultTrack = {
+const GENRE_OPTIONS = ['Techno', 'Hard Techno', 'Industrial Techno', 'Warehouse Techno', 'Minimal Techno', 'Peak Time Techno', 'House', 'Deep House', 'Progressive House', 'Dubstep', 'Drum & Bass', 'Hardstyle', 'Ambient', 'Synthwave', 'Hip Hop', 'Rock', 'Jazz', 'Classical'];
+const MOOD_OPTIONS = ['Dark', 'Epic', 'Energetic', 'Melancholic', 'Hypnotic', 'Dreamy', 'Atmospheric', 'Aggressive', 'Industrial', 'Futuristic'];
+const DURATION_OPTIONS = ['30 sec', '1 min', '2 min', '3 min', '4 min', '5 min', '10 min'];
+const ARTIST_OPTIONS = ['Hans Zimmer', 'Daft Punk', 'Charlotte de Witte', 'Eric Prydz', 'Deadmau5', 'Amelie Lens', 'Tale of Us'];
+const LANGUAGE_OPTIONS = ['English', 'Spanish', 'French', 'German', 'Japanese', 'Hindi', 'Instrumental'];
+const VOCAL_STYLE_OPTIONS = ['Male Vocal', 'Female Vocal', 'Robotic Vocal', 'Choir', 'Rap', 'Instrumental'];
+const STRUCTURE_OPTIONS = ['Standard', 'Verse Chorus', 'Build Drop', 'Ambient Flow', 'Cinematic'];
+const VIDEO_STYLE_OPTIONS = ['Cinematic', 'Cyberpunk', 'Anime', 'Abstract', 'Retro', 'AI Art'];
+const NUM_SONGS_OPTIONS = ['2', '3', '4', '5', '10', '20'];
+
+interface TrackData {
+  id: string;
+  trackName: string;
+  musicPrompt: string;
+  genres: string[];
+  moods: string[];
+  tempo: number;
+  duration: string;
+  lyrics: string;
+  artistInspiration: string[];
+  vocalLanguage: string;
+  vocalStyle: string;
+  structure: string;
+  energy: number;
+  creativity: number;
+  generateVideo: boolean;
+  videoStyle: string;
+  videoDescription: string;
+}
+
+const defaultTrackData = (): TrackData => ({
+  id: Math.random().toString(36).substr(2, 9),
   trackName: '',
-  prompt: '',
-  genres: [] as string[],
-  moods: [] as string[],
+  musicPrompt: '',
+  genres: [],
+  moods: [],
   tempo: 120,
-  durationRequested: 60,
+  duration: '3 min',
   lyrics: '',
-  vocalLanguage: 'English',
-  vocalStyle: 'None',
-  artistInspiration: '',
-  structurePreference: 'Standard',
+  artistInspiration: [],
+  vocalLanguage: 'Instrumental',
+  vocalStyle: 'Instrumental',
+  structure: 'Standard',
+  energy: 7,
+  creativity: 7,
   generateVideo: false,
   videoStyle: 'Cinematic',
-};
+  videoDescription: ''
+});
 
 export default function CreateMusic() {
-  const navigate = useNavigate();
+  const [mode, setMode] = useState<Mode>('Song');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [mode, setMode] = useState('Single Track');
+
+  // Album Mode State
   const [albumName, setAlbumName] = useState('');
-  const [numSongs, setNumSongs] = useState(3);
-  const [tracks, setTracks] = useState([{ ...defaultTrack }]);
-  const [expandedTrack, setExpandedTrack] = useState<number>(0);
-  const [suggestedFields, setSuggestedFields] = useState<Record<string, boolean>>({});
+  const [albumVibePrompt, setAlbumVibePrompt] = useState('');
+  const [numSongs, setNumSongs] = useState('2');
+  
+  // Tracks State (Used for both Song and Album)
+  const [tracks, setTracks] = useState<TrackData[]>([defaultTrackData()]);
+  const [expandedTrack, setExpandedTrack] = useState<string | null>(tracks[0].id);
 
-  useEffect(() => {
-    if (mode === 'Album') {
-      setTracks(prev => {
-        const newTracks = [...prev];
-        while (newTracks.length < numSongs) {
-          newTracks.push({ ...defaultTrack });
-        }
-        return newTracks.slice(0, numSongs);
-      });
-    } else {
-      setTracks(prev => [prev[0] || { ...defaultTrack }]);
-    }
-  }, [numSongs, mode]);
-
-  const updateTrack = (index: number, field: string, value: any) => {
-    setTracks(prev => {
-      const newTracks = [...prev];
-      newTracks[index] = { ...newTracks[index], [field]: value };
-      return newTracks;
-    });
-  };
-
-  const toggleArrayItem = (index: number, field: 'genres' | 'moods', item: string) => {
-    setTracks(prev => {
-      const newTracks = [...prev];
-      const arr = newTracks[index][field];
-      if (arr.includes(item)) {
-        newTracks[index][field] = arr.filter((i: string) => i !== item);
-      } else {
-        newTracks[index][field] = [...arr, item];
+  const handleNumSongsChange = (val: string) => {
+    setNumSongs(val);
+    const num = parseInt(val);
+    if (num > tracks.length) {
+      const newTracks = [...tracks];
+      for (let i = tracks.length; i < num; i++) {
+        newTracks.push(defaultTrackData());
       }
-      return newTracks;
-    });
+      setTracks(newTracks);
+    } else if (num < tracks.length) {
+      setTracks(tracks.slice(0, num));
+    }
   };
 
-  const markSuggested = (key: string) => {
-    setSuggestedFields(prev => ({ ...prev, [key]: true }));
+  const updateTrack = (id: string, field: keyof TrackData, value: any) => {
+    setTracks(tracks.map(t => t.id === id ? { ...t, [field]: value } : t));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleGenerate = async () => {
     setIsGenerating(true);
     try {
-      const apiKey = process.env.API_KEY || process.env.GEMINI_API_KEY || '';
-      for (let i = 0; i < tracks.length; i++) {
-        const trackData = {
-          ...tracks[i],
-          mode,
-          albumName: mode === 'Album' ? albumName : undefined,
-          trackNumber: mode === 'Album' ? i + 1 : undefined
+      for (const track of tracks) {
+        let durationRequested = 180; // default 3 min
+        if (track.duration.includes('sec')) {
+          durationRequested = parseInt(track.duration);
+        } else if (track.duration.includes('min')) {
+          durationRequested = parseInt(track.duration) * 60;
+        }
+
+        const payload = {
+          trackName: track.trackName || 'Untitled Track',
+          prompt: mode === 'Album' ? `${albumVibePrompt} ${track.musicPrompt}` : track.musicPrompt,
+          genres: track.genres,
+          moods: track.moods,
+          tempo: track.tempo,
+          durationRequested,
+          lyrics: track.lyrics,
+          artistInspiration: track.artistInspiration,
+          vocalLanguage: track.vocalLanguage,
+          vocalStyle: track.vocalStyle,
+          structure: track.structure,
+          energy: track.energy,
+          creativity: track.creativity,
+          generateVideo: track.generateVideo,
+          videoStyle: track.videoStyle,
+          videoDescription: track.videoDescription,
+          albumName: mode === 'Album' ? albumName : undefined
         };
-        await fetch('/api/tracks', {
+
+        const response = await fetch('/api/tracks', {
           method: 'POST',
-          headers: { 
-            'Content-Type': 'application/json',
-            'x-goog-api-key': apiKey
+          headers: {
+            'Content-Type': 'application/json'
           },
-          body: JSON.stringify(trackData),
+          body: JSON.stringify(payload)
         });
+
+        if (!response.ok) {
+          throw new Error('Failed to start generation');
+        }
       }
-      navigate('/dashboard');
-    } catch (error) {
-      console.error('Failed to create track(s)', error);
+      
+      // Redirect to dashboard after starting generation
+      window.location.href = '/dashboard';
+    } catch (e) {
+      console.error('Generation error:', e);
+      alert('Failed to start generation. Please check your API key and try again.');
+    } finally {
       setIsGenerating(false);
     }
   };
 
-  const renderTrackFields = (track: any, index: number) => (
-    <div className="space-y-6">
-      {/* Track Name */}
-      <div>
-        <div className="flex justify-between items-center mb-2">
-          <label className="text-slate-200 text-sm font-medium">Track Name <span className="text-red-400">*</span></label>
-          <AISuggestButton
-            fieldName="Track Name"
-            currentValue={track.trackName}
-            context={track}
-            onSuggest={(val) => updateTrack(index, 'trackName', val)}
-            isUsed={!!suggestedFields[`track_${index}_trackName`]}
-            onMarkUsed={() => markSuggested(`track_${index}_trackName`)}
-          />
-        </div>
-        <input
-          type="text"
-          value={track.trackName}
-          onChange={(e) => updateTrack(index, 'trackName', e.target.value)}
-          className="w-full bg-background-dark border border-border-dark rounded-lg p-3 text-white placeholder-slate-500 focus:ring-1 focus:ring-primary focus:border-primary focus:outline-none"
-          placeholder="e.g., Neon Night Drive"
-          required
-        />
-      </div>
+  const renderTrackForm = (track: TrackData, index: number, isAlbum: boolean) => {
+    const isExpanded = expandedTrack === track.id || !isAlbum;
+    const currentContext = { mode, albumVibePrompt, ...track };
 
-      {/* Prompt */}
-      <div>
-        <div className="flex justify-between items-center mb-2">
-          <label className="text-slate-200 text-sm font-medium">Music Prompt <span className="text-red-400">*</span></label>
-          <AISuggestButton
-            fieldName="Music Prompt"
-            currentValue={track.prompt}
-            context={track}
-            onSuggest={(val) => updateTrack(index, 'prompt', val)}
-            isUsed={!!suggestedFields[`track_${index}_prompt`]}
-            onMarkUsed={() => markSuggested(`track_${index}_prompt`)}
-          />
-        </div>
-        <textarea
-          value={track.prompt}
-          onChange={(e) => updateTrack(index, 'prompt', e.target.value)}
-          className="w-full bg-background-dark border border-border-dark rounded-lg p-4 text-white placeholder-slate-500 focus:ring-1 focus:ring-primary focus:border-primary focus:outline-none min-h-[120px] resize-none"
-          placeholder="Describe the mood, instruments, and style..."
-          required
-        />
-      </div>
-
-      {/* Genres & Moods */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <div className="flex justify-between items-center mb-3">
-            <span className="text-slate-200 text-sm font-medium block">Genres</span>
-            <AISuggestButton
-              fieldName="Genres"
-              currentValue={track.genres}
-              context={track}
-              onSuggest={(val) => updateTrack(index, 'genres', val)}
-              isUsed={!!suggestedFields[`track_${index}_genres`]}
-              onMarkUsed={() => markSuggested(`track_${index}_genres`)}
-              type="array"
-              options={GENRES}
-            />
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {GENRES.map((genre) => {
-              const isSelected = track.genres.includes(genre);
-              return (
-                <button
-                  key={genre}
-                  type="button"
-                  onClick={() => toggleArrayItem(index, 'genres', genre)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
-                    isSelected
-                      ? 'bg-primary/20 text-primary border-primary/50'
-                      : 'bg-border-dark text-slate-300 border-transparent hover:border-primary/50 hover:bg-primary/10'
-                  }`}
-                >
-                  {isSelected ? <Check size={14} /> : <Plus size={14} />}
-                  {genre}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-        <div>
-          <div className="flex justify-between items-center mb-3">
-            <span className="text-slate-200 text-sm font-medium block">Moods</span>
-            <AISuggestButton
-              fieldName="Moods"
-              currentValue={track.moods}
-              context={track}
-              onSuggest={(val) => updateTrack(index, 'moods', val)}
-              isUsed={!!suggestedFields[`track_${index}_moods`]}
-              onMarkUsed={() => markSuggested(`track_${index}_moods`)}
-              type="array"
-              options={MOODS}
-            />
-          </div>
-          <div className="flex flex-wrap gap-2">
-            {MOODS.map((mood) => {
-              const isSelected = track.moods.includes(mood);
-              return (
-                <button
-                  key={mood}
-                  type="button"
-                  onClick={() => toggleArrayItem(index, 'moods', mood)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
-                    isSelected
-                      ? 'bg-primary/20 text-primary border-primary/50'
-                      : 'bg-border-dark text-slate-300 border-transparent hover:border-primary/50 hover:bg-primary/10'
-                  }`}
-                >
-                  {isSelected ? <Check size={14} /> : <Plus size={14} />}
-                  {mood}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </div>
-
-      {/* Sliders */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <div className="flex justify-between items-center mb-3">
-            <span className="text-slate-200 text-sm font-medium block">
-              Tempo: <span className="text-primary font-bold">{track.tempo} BPM</span>
-            </span>
-            <AISuggestButton
-              fieldName="Tempo (BPM)"
-              currentValue={track.tempo}
-              context={track}
-              onSuggest={(val) => updateTrack(index, 'tempo', val)}
-              isUsed={!!suggestedFields[`track_${index}_tempo`]}
-              onMarkUsed={() => markSuggested(`track_${index}_tempo`)}
-              type="number"
-              min={60}
-              max={200}
-            />
-          </div>
-          <input
-            type="range"
-            min="60"
-            max="200"
-            value={track.tempo}
-            onChange={(e) => updateTrack(index, 'tempo', parseInt(e.target.value))}
-            className="w-full h-2 bg-background-dark rounded-lg appearance-none cursor-pointer accent-primary"
-          />
-        </div>
-        <div>
-          <div className="flex justify-between items-center mb-3">
-            <span className="text-slate-200 text-sm font-medium block">
-              Duration: <span className="text-primary font-bold">{track.durationRequested}s</span>
-            </span>
-            <AISuggestButton
-              fieldName="Duration (seconds)"
-              currentValue={track.durationRequested}
-              context={track}
-              onSuggest={(val) => updateTrack(index, 'durationRequested', val)}
-              isUsed={!!suggestedFields[`track_${index}_duration`]}
-              onMarkUsed={() => markSuggested(`track_${index}_duration`)}
-              type="number"
-              min={30}
-              max={300}
-            />
-          </div>
-          <input
-            type="range"
-            min="30"
-            max="300"
-            step="30"
-            value={track.durationRequested}
-            onChange={(e) => updateTrack(index, 'durationRequested', parseInt(e.target.value))}
-            className="w-full h-2 bg-background-dark rounded-lg appearance-none cursor-pointer accent-primary"
-          />
-        </div>
-      </div>
-
-      {/* Lyrics & Artist Inspiration */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div>
-          <div className="flex justify-between items-center mb-2">
-            <label className="text-slate-200 text-sm font-medium">Lyrics <span className="text-slate-500 text-xs font-normal">(Optional)</span></label>
-            <AISuggestButton
-              fieldName="Lyrics"
-              currentValue={track.lyrics}
-              context={track}
-              onSuggest={(val) => updateTrack(index, 'lyrics', val)}
-              isUsed={!!suggestedFields[`track_${index}_lyrics`]}
-              onMarkUsed={() => markSuggested(`track_${index}_lyrics`)}
-            />
-          </div>
-          <textarea
-            value={track.lyrics}
-            onChange={(e) => updateTrack(index, 'lyrics', e.target.value)}
-            className="w-full bg-background-dark border border-border-dark rounded-lg p-4 text-white placeholder-slate-500 focus:ring-1 focus:ring-primary focus:border-primary focus:outline-none min-h-[100px] resize-none"
-            placeholder="Write your lyrics here..."
-          />
-        </div>
-        <div>
-          <div className="flex justify-between items-center mb-2">
-            <label className="text-slate-200 text-sm font-medium">Artist Inspiration</label>
-            <AISuggestButton
-              fieldName="Artist Inspiration"
-              currentValue={track.artistInspiration}
-              context={track}
-              onSuggest={(val) => updateTrack(index, 'artistInspiration', val)}
-              isUsed={!!suggestedFields[`track_${index}_artistInspiration`]}
-              onMarkUsed={() => markSuggested(`track_${index}_artistInspiration`)}
-            />
-          </div>
-          <input
-            type="text"
-            value={track.artistInspiration}
-            onChange={(e) => updateTrack(index, 'artistInspiration', e.target.value)}
-            className="w-full bg-background-dark border border-border-dark rounded-lg p-3 text-white placeholder-slate-500 focus:ring-1 focus:ring-primary focus:border-primary focus:outline-none"
-            placeholder="e.g., Hans Zimmer, Daft Punk"
-          />
-        </div>
-      </div>
-
-      {/* Advanced Settings */}
-      <div className="pt-4 border-t border-border-dark grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div>
-          <div className="flex justify-between items-center mb-2">
-            <label className="text-slate-200 text-sm font-medium block">Vocal Language</label>
-            <AISuggestButton
-              fieldName="Vocal Language"
-              currentValue={track.vocalLanguage}
-              context={track}
-              onSuggest={(val) => updateTrack(index, 'vocalLanguage', val)}
-              isUsed={!!suggestedFields[`track_${index}_vocalLanguage`]}
-              onMarkUsed={() => markSuggested(`track_${index}_vocalLanguage`)}
-              options={['English', 'Spanish', 'French', 'Japanese', 'Korean']}
-            />
-          </div>
-          <select
-            value={track.vocalLanguage}
-            onChange={(e) => updateTrack(index, 'vocalLanguage', e.target.value)}
-            className="w-full bg-background-dark border border-border-dark rounded-lg p-3 text-white focus:ring-1 focus:ring-primary focus:border-primary focus:outline-none"
+    return (
+      <div key={track.id} className={`bg-surface-darker border border-border-dark rounded-xl overflow-hidden ${isAlbum ? 'mb-4' : ''}`}>
+        {isAlbum && (
+          <div 
+            className="p-4 flex justify-between items-center cursor-pointer hover:bg-surface-dark transition-colors"
+            onClick={() => setExpandedTrack(isExpanded ? null : track.id)}
           >
-            <option>English</option>
-            <option>Spanish</option>
-            <option>French</option>
-            <option>Japanese</option>
-            <option>Korean</option>
-          </select>
-        </div>
-        <div>
-          <div className="flex justify-between items-center mb-2">
-            <label className="text-slate-200 text-sm font-medium block">Vocal Style</label>
-            <AISuggestButton
-              fieldName="Vocal Style"
-              currentValue={track.vocalStyle}
-              context={track}
-              onSuggest={(val) => updateTrack(index, 'vocalStyle', val)}
-              isUsed={!!suggestedFields[`track_${index}_vocalStyle`]}
-              onMarkUsed={() => markSuggested(`track_${index}_vocalStyle`)}
-              options={['None', 'Male Pop', 'Female Pop', 'Choir', 'Rap']}
-            />
-          </div>
-          <select
-            value={track.vocalStyle}
-            onChange={(e) => updateTrack(index, 'vocalStyle', e.target.value)}
-            className="w-full bg-background-dark border border-border-dark rounded-lg p-3 text-white focus:ring-1 focus:ring-primary focus:border-primary focus:outline-none"
-          >
-            <option>None</option>
-            <option>Male Pop</option>
-            <option>Female Pop</option>
-            <option>Choir</option>
-            <option>Rap</option>
-          </select>
-        </div>
-        <div>
-          <div className="flex justify-between items-center mb-2">
-            <label className="text-slate-200 text-sm font-medium block">Structure Preference</label>
-            <AISuggestButton
-              fieldName="Structure Preference"
-              currentValue={track.structurePreference}
-              context={track}
-              onSuggest={(val) => updateTrack(index, 'structurePreference', val)}
-              isUsed={!!suggestedFields[`track_${index}_structurePreference`]}
-              onMarkUsed={() => markSuggested(`track_${index}_structurePreference`)}
-              options={['Standard', 'Progressive Build', 'Ambient Drone', 'Verse-Chorus']}
-            />
-          </div>
-          <select
-            value={track.structurePreference}
-            onChange={(e) => updateTrack(index, 'structurePreference', e.target.value)}
-            className="w-full bg-background-dark border border-border-dark rounded-lg p-3 text-white focus:ring-1 focus:ring-primary focus:border-primary focus:outline-none"
-          >
-            <option>Standard</option>
-            <option>Progressive Build</option>
-            <option>Ambient Drone</option>
-            <option>Verse-Chorus</option>
-          </select>
-        </div>
-      </div>
-
-      {/* Video Generation */}
-      <div className="pt-4 border-t border-border-dark">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <label className="text-slate-200 text-sm font-medium block">Generate Music Video</label>
-            <p className="text-slate-500 text-xs">Create a synchronized video using Veo 3.1</p>
-          </div>
-          <label className="relative inline-flex items-center cursor-pointer">
-            <input
-              type="checkbox"
-              className="sr-only peer"
-              checked={track.generateVideo}
-              onChange={(e) => updateTrack(index, 'generateVideo', e.target.checked)}
-            />
-            <div className="w-11 h-6 bg-border-dark peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
-          </label>
-        </div>
-
-        {track.generateVideo && (
-          <div>
-            <div className="flex justify-between items-center mb-2">
-              <label className="text-slate-200 text-sm font-medium block">Video Style</label>
-              <AISuggestButton
-                fieldName="Video Style"
-                currentValue={track.videoStyle}
-                context={track}
-                onSuggest={(val) => updateTrack(index, 'videoStyle', val)}
-                isUsed={!!suggestedFields[`track_${index}_videoStyle`]}
-                onMarkUsed={() => markSuggested(`track_${index}_videoStyle`)}
-                options={['Cinematic', 'Anime', 'Cyberpunk', 'Abstract', 'Retro 80s', 'Watercolor']}
-              />
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-primary/20 text-primary flex items-center justify-center font-bold text-sm">
+                {index + 1}
+              </div>
+              <h3 className="text-lg font-bold text-white">{track.trackName || `Track ${index + 1}`}</h3>
             </div>
-            <select
-              value={track.videoStyle}
-              onChange={(e) => updateTrack(index, 'videoStyle', e.target.value)}
-              className="w-full bg-background-dark border border-border-dark rounded-lg p-3 text-white focus:ring-1 focus:ring-primary focus:border-primary focus:outline-none"
-            >
-              <option>Cinematic</option>
-              <option>Anime</option>
-              <option>Cyberpunk</option>
-              <option>Abstract</option>
-              <option>Retro 80s</option>
-              <option>Watercolor</option>
-            </select>
+            {isExpanded ? <ChevronUp size={20} className="text-slate-400" /> : <ChevronDown size={20} className="text-slate-400" />}
+          </div>
+        )}
+
+        {isExpanded && (
+          <div className={`p-6 ${isAlbum ? 'border-t border-border-dark' : ''}`}>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6">
+              <div className="md:col-span-2">
+                <FormField label="Track Name" value={track.trackName} onChange={(v) => updateTrack(track.id, 'trackName', v)} type="text" placeholder="e.g. Dark Frequency" context={currentContext} />
+                <FormField label="Music Prompt" value={track.musicPrompt} onChange={(v) => updateTrack(track.id, 'musicPrompt', v)} type="textarea" placeholder="Industrial warehouse techno with hypnotic basslines..." context={currentContext} />
+              </div>
+
+              <FormField label="Genres" value={track.genres} onChange={(v) => updateTrack(track.id, 'genres', v)} type="multiselect" options={GENRE_OPTIONS} context={currentContext} />
+              <FormField label="Moods" value={track.moods} onChange={(v) => updateTrack(track.id, 'moods', v)} type="multiselect" options={MOOD_OPTIONS} context={currentContext} />
+              
+              <FormField label="Tempo Range" value={track.tempo} onChange={(v) => updateTrack(track.id, 'tempo', v)} type="range" min={60} max={200} unit="BPM" context={currentContext} />
+              <FormField label="Duration" value={track.duration} onChange={(v) => updateTrack(track.id, 'duration', v)} type="select" options={DURATION_OPTIONS} context={currentContext} />
+              
+              <div className="md:col-span-2">
+                <FormField label="Lyrics (Optional)" value={track.lyrics} onChange={(v) => updateTrack(track.id, 'lyrics', v)} type="textarea" placeholder="Enter custom lyrics or generate them..." context={currentContext} />
+              </div>
+
+              <FormField label="Artist Inspiration" value={track.artistInspiration} onChange={(v) => updateTrack(track.id, 'artistInspiration', v)} type="multiselect" options={ARTIST_OPTIONS} context={currentContext} />
+              <FormField label="Structure Preference" value={track.structure} onChange={(v) => updateTrack(track.id, 'structure', v)} type="select" options={STRUCTURE_OPTIONS} context={currentContext} />
+
+              <FormField label="Vocal Language" value={track.vocalLanguage} onChange={(v) => updateTrack(track.id, 'vocalLanguage', v)} type="select" options={LANGUAGE_OPTIONS} context={currentContext} />
+              <FormField label="Vocal Style" value={track.vocalStyle} onChange={(v) => updateTrack(track.id, 'vocalStyle', v)} type="select" options={VOCAL_STYLE_OPTIONS} context={currentContext} />
+
+              <FormField label="Energy Level" value={track.energy} onChange={(v) => updateTrack(track.id, 'energy', v)} type="range" min={1} max={10} context={currentContext} />
+              <FormField label="Creativity Level" value={track.creativity} onChange={(v) => updateTrack(track.id, 'creativity', v)} type="range" min={1} max={10} context={currentContext} />
+            </div>
+
+            <div className="mt-8 pt-6 border-t border-border-dark">
+              <h4 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                <Play className="text-primary" size={18} /> Video Generation
+              </h4>
+              
+              <FormField label="Generate Music Video" value={track.generateVideo} onChange={(v) => updateTrack(track.id, 'generateVideo', v)} type="toggle" context={currentContext} />
+              
+              {track.generateVideo && (
+                <div className="mt-6 grid grid-cols-1 md:grid-cols-2 gap-x-6 animate-in fade-in slide-in-from-top-4 duration-300">
+                  <FormField label="Video Style" value={track.videoStyle} onChange={(v) => updateTrack(track.id, 'videoStyle', v)} type="select" options={VIDEO_STYLE_OPTIONS} context={currentContext} />
+                  <div className="md:col-span-2">
+                    <FormField label="Video Description Prompt" value={track.videoDescription} onChange={(v) => updateTrack(track.id, 'videoDescription', v)} type="textarea" placeholder="A cyberpunk warehouse rave with neon lights..." context={currentContext} />
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         )}
       </div>
-    </div>
-  );
+    );
+  };
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 md:p-8">
-      <div className="max-w-[1400px] mx-auto grid grid-cols-12 gap-6 md:gap-8">
-        <div className="col-span-12 xl:col-span-8 flex flex-col gap-6">
-          <div className="flex flex-col gap-2">
-            <h2 className="text-2xl md:text-3xl font-bold text-white tracking-tight">Create New Track</h2>
-            <p className="text-slate-400 text-sm md:text-base">Compose deterministic loops with AI orchestration.</p>
-          </div>
+    <div className="p-6 md:p-8 max-w-4xl mx-auto">
+      <div className="mb-8">
+        <h1 className="text-3xl font-bold text-white mb-2">Create Music</h1>
+        <p className="text-slate-400">Define your sonic identity and let Gemini synthesize it.</p>
+      </div>
 
-          <form onSubmit={handleSubmit} className="bg-surface-dark border border-border-dark rounded-xl p-4 md:p-6 shadow-sm space-y-6">
-            {/* Mode Selector */}
-            <div>
-              <span className="text-slate-200 text-sm font-medium mb-3 block">Mode</span>
-              <div className="flex bg-background-dark rounded-lg p-1 border border-border-dark w-fit">
-                {['Single Track', 'Album'].map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => setMode(m)}
-                    className={`px-4 py-1.5 rounded text-sm font-medium transition-colors ${
-                      mode === m
-                        ? 'bg-primary text-white shadow-sm'
-                        : 'text-slate-400 hover:text-white hover:bg-white/5'
-                    }`}
-                  >
-                    {m}
-                  </button>
-                ))}
-              </div>
-            </div>
-
-            {mode === 'Album' && (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 p-4 bg-background-dark rounded-xl border border-border-dark">
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <label className="text-slate-200 text-sm font-medium block">Album Name <span className="text-red-400">*</span></label>
-                    <AISuggestButton
-                      fieldName="Album Name"
-                      currentValue={albumName}
-                      context={{ mode, numSongs }}
-                      onSuggest={setAlbumName}
-                      isUsed={!!suggestedFields['album_name']}
-                      onMarkUsed={() => markSuggested('album_name')}
-                    />
-                  </div>
-                  <input
-                    type="text"
-                    value={albumName}
-                    onChange={(e) => setAlbumName(e.target.value)}
-                    className="w-full bg-surface-dark border border-border-dark rounded-lg p-3 text-white placeholder-slate-500 focus:ring-1 focus:ring-primary focus:border-primary focus:outline-none"
-                    placeholder="e.g., Midnight Synth"
-                    required
-                  />
-                </div>
-                <div>
-                  <div className="flex justify-between items-center mb-2">
-                    <label className="text-slate-200 text-sm font-medium block">Number of Songs</label>
-                    <AISuggestButton
-                      fieldName="Number of Songs"
-                      currentValue={numSongs}
-                      context={{ mode, albumName }}
-                      onSuggest={setNumSongs}
-                      isUsed={!!suggestedFields['album_numSongs']}
-                      onMarkUsed={() => markSuggested('album_numSongs')}
-                      type="number"
-                      min={2}
-                      max={12}
-                    />
-                  </div>
-                  <input
-                    type="number"
-                    min="2"
-                    max="12"
-                    value={numSongs}
-                    onChange={(e) => setNumSongs(parseInt(e.target.value) || 2)}
-                    className="w-full bg-surface-dark border border-border-dark rounded-lg p-3 text-white focus:ring-1 focus:ring-primary focus:border-primary focus:outline-none"
-                    required
-                  />
-                </div>
-              </div>
-            )}
-
-            <div className="space-y-4">
-              {tracks.map((track, index) => {
-                if (mode === 'Single Track') {
-                  return <div key={index}>{renderTrackFields(track, index)}</div>;
-                }
-
-                // Album Mode: Accordion
-                const isExpanded = expandedTrack === index;
-                return (
-                  <div key={index} className="border border-border-dark rounded-xl overflow-hidden bg-background-dark">
-                    <button
-                      type="button"
-                      onClick={() => setExpandedTrack(isExpanded ? -1 : index)}
-                      className="w-full p-4 flex justify-between items-center hover:bg-white/5 transition-colors"
-                    >
-                      <div className="flex items-center gap-3">
-                        <span className="flex items-center justify-center w-6 h-6 rounded-full bg-primary/20 text-primary text-xs font-bold">
-                          {index + 1}
-                        </span>
-                        <span className="font-bold text-white">
-                          {track.trackName || `Untitled Song ${index + 1}`}
-                        </span>
-                      </div>
-                      {isExpanded ? <ChevronUp size={20} className="text-slate-400" /> : <ChevronDown size={20} className="text-slate-400" />}
-                    </button>
-                    {isExpanded && (
-                      <div className="p-4 md:p-6 border-t border-border-dark bg-surface-dark">
-                        {renderTrackFields(track, index)}
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-
-            <button
-              type="submit"
-              disabled={isGenerating}
-              className="w-full bg-primary hover:bg-primary-hover text-white font-bold py-4 rounded-lg shadow-lg shadow-primary/20 flex items-center justify-center gap-2 transition-all transform active:scale-[0.99] disabled:opacity-50 disabled:cursor-not-allowed mt-8"
-            >
-              {isGenerating ? (
-                <Wand2 className="animate-spin" />
-              ) : (
-                <Sparkles />
-              )}
-              {isGenerating ? 'Initializing Pipeline...' : mode === 'Album' ? `Generate Album (${numSongs} Tracks)` : 'Generate Track'}
-            </button>
-          </form>
+      <div className="bg-surface-dark border border-border-dark rounded-xl p-6 mb-8">
+        <div className="flex gap-4 mb-8">
+          <button
+            onClick={() => {
+              setMode('Song');
+              setTracks([tracks[0]]);
+            }}
+            className={`flex-1 py-3 px-4 rounded-lg font-bold flex items-center justify-center gap-2 transition-all ${
+              mode === 'Song' 
+                ? 'bg-primary text-white shadow-lg shadow-primary/20' 
+                : 'bg-surface-darker text-slate-400 hover:text-white hover:bg-surface-darker/80 border border-border-dark'
+            }`}
+          >
+            <Music size={20} />
+            Single Track
+          </button>
+          <button
+            onClick={() => {
+              setMode('Album');
+              handleNumSongsChange(numSongs);
+            }}
+            className={`flex-1 py-3 px-4 rounded-lg font-bold flex items-center justify-center gap-2 transition-all ${
+              mode === 'Album' 
+                ? 'bg-primary text-white shadow-lg shadow-primary/20' 
+                : 'bg-surface-darker text-slate-400 hover:text-white hover:bg-surface-darker/80 border border-border-dark'
+            }`}
+          >
+            <Disc size={20} />
+            Full Album
+          </button>
         </div>
 
-        {/* Right Column: Info / Pipeline Preview */}
-        <div className="col-span-12 xl:col-span-4 flex flex-col gap-6">
-          <div className="bg-surface-dark border border-border-dark rounded-xl p-6 sticky top-8">
-            <h3 className="text-white font-bold text-sm uppercase tracking-wide mb-4">Pipeline Overview</h3>
-            <div className="space-y-4">
-              <div className="flex items-start gap-4">
-                <div className="flex flex-col items-center">
-                  <div className="w-6 h-6 rounded-full bg-border-dark text-slate-500 flex items-center justify-center border border-slate-700">
-                    <span className="text-[10px] font-bold">1</span>
-                  </div>
-                  <div className="w-0.5 h-full bg-border-dark min-h-[24px] my-1"></div>
-                </div>
-                <div className="flex-1 pb-2">
-                  <p className="text-white text-sm font-medium">Intent Analysis</p>
-                  <p className="text-slate-400 text-xs">Gemini extracts musical parameters</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-4">
-                <div className="flex flex-col items-center">
-                  <div className="w-6 h-6 rounded-full bg-border-dark text-slate-500 flex items-center justify-center border border-slate-700">
-                    <span className="text-[10px] font-bold">2</span>
-                  </div>
-                  <div className="w-0.5 h-full bg-border-dark min-h-[24px] my-1"></div>
-                </div>
-                <div className="flex-1 pb-2">
-                  <p className="text-white text-sm font-medium">Generation Loop</p>
-                  <p className="text-slate-400 text-xs">30s segments generated iteratively</p>
-                </div>
-              </div>
-              <div className="flex items-start gap-4">
-                <div className="flex flex-col items-center">
-                  <div className="w-6 h-6 rounded-full bg-border-dark text-slate-500 flex items-center justify-center border border-slate-700">
-                    <span className="text-[10px] font-bold">3</span>
-                  </div>
-                </div>
-                <div className="flex-1">
-                  <p className="text-white text-sm font-medium">Progressive Stitching</p>
-                  <p className="text-slate-400 text-xs">DSP crossfade & master update</p>
-                </div>
-              </div>
-            </div>
+        {mode === 'Album' && (
+          <div className="mb-10 p-6 bg-surface-darker border border-primary/20 rounded-xl relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-1 h-full bg-primary"></div>
+            <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+              <Disc className="text-primary" /> Album Details
+            </h2>
+            <FormField label="Album Name" value={albumName} onChange={setAlbumName} type="text" placeholder="e.g. Neon Nights" context={{ mode }} />
+            <FormField label="Album Vibe Prompt" value={albumVibePrompt} onChange={setAlbumVibePrompt} type="textarea" placeholder="Describe the overall sonic identity of the album..." context={{ mode }} />
+            <FormField label="Number of Songs" value={numSongs} onChange={handleNumSongsChange} type="select" options={NUM_SONGS_OPTIONS} context={{ mode }} />
           </div>
+        )}
+
+        <div className="space-y-6">
+          <h2 className="text-xl font-bold text-white mb-6 flex items-center gap-2 border-b border-border-dark pb-4">
+            <Music className="text-primary" /> {mode === 'Album' ? 'Album Tracks' : 'Track Details'}
+          </h2>
+          
+          <div className="space-y-4">
+            {tracks.map((track, index) => renderTrackForm(track, index, mode === 'Album'))}
+          </div>
+        </div>
+
+        <div className="mt-10 flex justify-end">
+          <button
+            onClick={handleGenerate}
+            disabled={isGenerating}
+            className="bg-primary hover:bg-primary-hover text-white font-bold py-4 px-8 rounded-xl shadow-lg shadow-primary/20 transition-all transform active:scale-[0.99] flex items-center gap-3 disabled:opacity-70 disabled:cursor-not-allowed"
+          >
+            {isGenerating ? (
+              <>
+                <Loader2 className="animate-spin" size={24} />
+                Initializing Synthesis...
+              </>
+            ) : (
+              <>
+                <Sparkles size={24} />
+                Generate {mode === 'Album' ? 'Album' : 'Track'}
+              </>
+            )}
+          </button>
         </div>
       </div>
     </div>

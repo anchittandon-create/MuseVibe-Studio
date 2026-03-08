@@ -206,6 +206,25 @@ function TrackCard({ track }: { track: any; key?: any }) {
           </div>
         </div>
       </div>
+
+      {/* Video Player */}
+      {track.videoUrl && (
+        <div className="mt-4 rounded-lg overflow-hidden border border-border-dark bg-black aspect-video relative">
+          <video 
+            src={track.videoUrl} 
+            controls 
+            className="w-full h-full object-contain"
+            poster="https://picsum.photos/seed/musicvideo/640/360?blur=10"
+          />
+        </div>
+      )}
+      
+      {track.status === 'generating_video' && (
+        <div className="mt-4 flex items-center justify-center gap-2 text-primary text-sm font-medium bg-primary/10 p-4 rounded-lg border border-primary/20">
+          <RefreshCw size={16} className="animate-spin" />
+          Generating Music Video...
+        </div>
+      )}
     </div>
   );
 }
